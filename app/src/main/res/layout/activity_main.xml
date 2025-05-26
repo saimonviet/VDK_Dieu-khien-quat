@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- Trạng thái quạt -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="6dp"
+            android:layout_marginBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:gravity="center_horizontal">
+
+                <TextView
+                    android:id="@+id/statusText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Trạng thái quạt: Tắt\nNhiệt độ: --°C\nĐầu tạo ẩm: Tắt"
+                    android:textSize="18sp"
+                    android:paddingTop="8dp"
+                    android:gravity="center" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Bật/tắt quạt -->
+        <Button
+            android:id="@+id/toggleFanButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Bật quạt"
+            android:backgroundTint="@color/primary_blue"
+            android:textColor="@color/white"
+            android:padding="12dp" />
+
+        <!-- Bật/tắt đầu tạo ẩm -->
+        <Button
+            android:id="@+id/toggleHumidifierButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Bật đầu tạo ẩm"
+            android:backgroundTint="@color/primary_blue"
+            android:textColor="@color/white"
+            android:padding="12dp"
+            android:layout_marginTop="8dp" />
+
+        <!-- Tốc độ quạt -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            android:layout_marginTop="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tốc độ quạt"
+                    android:textStyle="bold"
+                    android:textSize="16sp"
+                    android:paddingBottom="6dp" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center">
+
+                    <Button
+                        android:id="@+id/speedLowButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Thấp"
+                        android:backgroundTint="@color/primary_blue"
+                        android:textColor="@color/white" />
+
+                    <Button
+                        android:id="@+id/speedMediumButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Trung bình"
+                        android:layout_marginHorizontal="8dp"
+                        android:backgroundTint="@color/primary_blue"
+                        android:textColor="@color/white" />
+
+                    <Button
+                        android:id="@+id/speedHighButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cao"
+                        android:backgroundTint="@color/primary_blue"
+                        android:textColor="@color/white" />
+                </LinearLayout>
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- Chế độ tự động + Xoay -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="12dp">
+
+            <Button
+                android:id="@+id/autoModeButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Tự động: Tắt"
+                android:backgroundTint="@color/primary_blue"
+                android:textColor="@color/white" />
+
+            <Space android:layout_width="8dp" android:layout_height="wrap_content" />
+
+            <Button
+                android:id="@+id/oscillationButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="Xoay: Tắt"
+                android:backgroundTint="@color/primary_blue"
+                android:textColor="@color/white" />
+        </LinearLayout>
+
+        <!-- Góc xoay -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp"
+            android:layout_marginTop="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Góc xoay"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <SeekBar
+                    android:id="@+id/angleSlider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="150"
+                    android:progress="60" />
+
+                <TextView
+                    android:id="@+id/angleText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Góc: 90°"
+                    android:gravity="center" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+    </LinearLayout>
+</ScrollView>
