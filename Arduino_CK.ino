@@ -18,13 +18,20 @@ Servo servo;
 int fanSpeed = 0;
 bool autoMode = false;
 bool oscillation = false;
-int oscillationAngle = 90;
+int servoAngle = 90; // Góc hiện tại của servo
 float temperature = 0.0;
-bool humidifierOn = false; // Trạng thái đầu tạo ẩm
+float humidity = 0.0;
+bool humidifierOn = false;
+float autoTempThreshold = 30.0; // Ngưỡng nhiệt độ tự động
+float autoHumidityThreshold = 60.0; // Ngưỡng độ ẩm tự động
+
+// Các góc cố định
+const int fixedAngles[] = {0, 45, 90, 135, 180};
+int currentAngleIndex = 2; // Bắt đầu ở 90 độ
 
 // Điều khiển tốc độ quạt
 void setFanSpeed(int speed) {
-  speed = constrain(speed, 0, 3); // Giới hạn tốc độ 0-3
+  speed = constrain(speed, 0, 3);
   digitalWrite(MOTOR_IN1, HIGH);
   digitalWrite(MOTOR_IN2, LOW);
   if (speed == 0) {
@@ -48,48 +55,49 @@ void setHumidifier(bool state) {
 // Xoay servo
 void oscillateServo() {
   if (oscillation) {
-    for (int pos = 90 - oscillationAngle / 2; pos <= 90 + oscillationAngle / 2; pos += 1) {
+    for (int pos = 0; pos <= 180; pos += 1) {
       servo.write(pos);
-      delay(15);
+      delay(30);
     }
-    for (int pos = 90 + oscillationAngle / 2; pos >= 90 - oscillationAngle / 2; pos -= 1) {
+    for (int pos = 180; pos >= 0; pos -= 1) {
       servo.write(pos);
-      delay(15);
+      delay(30);
     }
   } else {
-    servo.write(90);
+    servo.write(fixedAngles[currentAngleIndex]);
   }
 }
 
 void setup() {
-  Serial.begin(115200); // Serial trên chân 0, 1 cho ESP32
+  Serial.begin(115200);
   
   pinMode(MOTOR_ENA, OUTPUT);
   pinMode(MOTOR_IN1, OUTPUT);
   pinMode(MOTOR_IN2, OUTPUT);
-  pinMode(RELAY_PIN, OUTPUT); // Khởi tạo chân relay
-  digitalWrite(RELAY_PIN, LOW); // Tắt relay ban đầu
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
   
   servo.attach(SERVO_PIN);
-  servo.write(90);
+  servo.write(fixedAngles[currentAngleIndex]);
   
   dht.begin();
 }
 
 void loop() {
-  // Đọc nhiệt độ
+  // Đọc nhiệt độ và độ ẩm
   temperature = dht.readTemperature();
-  if (isnan(temperature)) {
-    temperature = 0.0; // Giá trị mặc định nếu lỗi
-  }
+  humidity = dht.readHumidity();
+  if (isnan(temperature)) temperature = 0.0;
+  if (isnan(humidity)) humidity = 0.0;
   
   // Chế độ tự động
   if (autoMode) {
-    if (temperature > 30.0) {
-      setFanSpeed(3);
+    if (temperature > autoTempThreshold) {
+      setFanSpeed(3); // Bật quạt tốc độ cao nếu nhiệt độ cao
     } else {
-      setFanSpeed(0);
+      setFanSpeed(0); // Tắt quạt nếu nhiệt độ thấp
     }
+    setHumidifier(humidity < autoHumidityThreshold); // Bật phun sương nếu độ ẩm thấp
   }
   
   // Xử lý lệnh từ ESP32
@@ -97,38 +105,52 @@ void loop() {
     String command = Serial.readStringUntil('\n');
     command.trim();
     if (command.startsWith("speed:")) {
-      int newSpeed = command.substring(6).toInt();
       if (!autoMode) {
+        int newSpeed = command.substring(6).toInt();
         setFanSpeed(newSpeed);
       }
     } else if (command == "auto:on") {
       autoMode = true;
     } else if (command == "auto:off") {
       autoMode = false;
-      setFanSpeed(fanSpeed);
+      setFanSpeed(fanSpeed); // Khôi phục tốc độ quạt thủ công
+      setHumidifier(humidifierOn); // Khôi phục trạng thái phun sương thủ công
     } else if (command == "oscillation:on") {
       oscillation = true;
     } else if (command == "oscillation:off") {
       oscillation = false;
-    } else if (command.startsWith("angle:")) {
-      oscillationAngle = command.substring(6).toInt();
-      oscillationAngle = constrain(oscillationAngle, 30, 180);
+    } else if (command == "angle:next") {
+      if (!oscillation) {
+        currentAngleIndex = (currentAngleIndex + 1) % 5;
+        servo.write(fixedAngles[currentAngleIndex]);
+      }
     } else if (command == "humidifier:on") {
-      setHumidifier(true);
+      if (!autoMode) {
+        setHumidifier(true);
+      }
     } else if (command == "humidifier:off") {
-      setHumidifier(false);
+      if (!autoMode) {
+        setHumidifier(false);
+      }
+    } else if (command.startsWith("temp_threshold:")) {
+      autoTempThreshold = command.substring(15).toFloat();
+    } else if (command.startsWith("humidity_threshold:")) {
+      autoHumidityThreshold = command.substring(19).toFloat();
     }
   }
   
-  // Gửi trạng thái đến ESP32 mỗi 500ms
+  // Gửi trạng thái đến ESP32
   static unsigned long lastSend = 0;
   if (millis() - lastSend >= 500) {
     String status = "{\"speed\":" + String(fanSpeed) + 
-                    ",\"auto\":" + String(autoMode ? "true" : "false") + 
                     ",\"oscillation\":" + String(oscillation ? "true" : "false") + 
-                    ",\"angle\":" + String(oscillationAngle) + 
+                    ",\"angle\":" + String(fixedAngles[currentAngleIndex]) + 
                     ",\"temp\":" + String(temperature) + 
-                    ",\"humidifier\":" + String(humidifierOn ? "true" : "false") + "}";
+                    ",\"humidity\":" + String(humidity) + 
+                    ",\"humidifier\":" + String(humidifierOn ? "true" : "false") + 
+                    ",\"auto\":" + String(autoMode ? "true" : "false") + 
+                    ",\"temp_threshold\":" + String(autoTempThreshold) + 
+                    ",\"humidity_threshold\":" + String(autoHumidityThreshold) + "}";
     Serial.println(status);
     lastSend = millis();
   }
