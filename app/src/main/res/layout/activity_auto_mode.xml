@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:gravity="center_horizontal">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Cài đặt chế độ tự động"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:paddingBottom="16dp" />
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ngưỡng nhiệt độ (°C)"
+                android:textSize="16sp"
+                android:paddingBottom="8dp" />
+
+            <EditText
+                android:id="@+id/tempThresholdInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:padding="12dp"
+                android:inputType="numberDecimal"
+                android:hint="Nhập ngưỡng nhiệt độ (ví dụ: 30.0)" />
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="12dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Ngưỡng độ ẩm (%)"
+                android:textSize="16sp"
+                android:paddingBottom="8dp" />
+
+            <EditText
+                android:id="@+id/humidityThresholdInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:padding="12dp"
+                android:inputType="numberDecimal"
+                android:hint="Nhập ngưỡng độ ẩm (ví dụ: 60.0)" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <Button
+        android:id="@+id/saveButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Lưu và bật tự động"
+        android:backgroundTint="@color/primary_blue"
+        android:textColor="@color/white"
+        android:padding="12dp"
+        android:layout_marginBottom="8dp" />
+
+    <Button
+        android:id="@+id/disableAutoButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Tắt chế độ tự động"
+        android:backgroundTint="@color/red"
+        android:textColor="@color/white"
+        android:padding="12dp" />
+</LinearLayout>

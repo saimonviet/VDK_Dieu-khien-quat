@@ -1,14 +1,11 @@
 package com.example.fancontrolapp;
 
-import android.Manifest;
-import android.content.pm.PackageManager;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.neovisionaries.ws.client.WebSocket;
 import com.neovisionaries.ws.client.WebSocketAdapter;
@@ -18,148 +15,152 @@ import org.json.JSONObject;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "FanControlApp";
     private WebSocket ws;
-    private TextView statusText, angleText;
-    private Button toggleFanButton, toggleHumidifierButton, speedLowButton, speedMediumButton, speedHighButton, autoModeButton, oscillationButton;
-    private SeekBar angleSlider;
-    private boolean fanOn = false;
-    private int currentSpeed = 1;
-    private boolean autoMode = false;
-    private boolean oscillation = false;
-    private int oscillationAngle = 90;
+    private TextView tempHumidityText, fanStatusLabel, autoModeStatusText;
+    private Button speedOffButton, speedLowButton, speedMediumButton, speedHighButton,
+            toggleHumidifierButton, oscillationButton, angleButton, autoModeButton;
     private boolean humidifierOn = false;
+    private boolean oscillation = false;
+    private int currentSpeed = 0;
+    private boolean autoMode = false;
+    private int currentAngleIndex = 2; // Start at 90 degrees
+    private float tempThreshold = 30.0f;
+    private float humidityThreshold = 60.0f;
+    private float currentTemp = 0.0f;
+    private float currentHumidity = 0.0f;
+    private final int[] angles = {0, 45, 90, 135, 180};
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.INTERNET}, 1);
-        }
-
-        statusText = findViewById(R.id.statusText);
-        angleText = findViewById(R.id.angleText);
-        toggleFanButton = findViewById(R.id.toggleFanButton);
-        toggleHumidifierButton = findViewById(R.id.toggleHumidifierButton);
+        // Initialize UI elements from XML
+        tempHumidityText = findViewById(R.id.tempHumidityText);
+        fanStatusLabel = findViewById(R.id.fanStatusLabel);
+        autoModeStatusText = findViewById(R.id.autoModeStatusText);
+        speedOffButton = findViewById(R.id.speedOffButton);
         speedLowButton = findViewById(R.id.speedLowButton);
         speedMediumButton = findViewById(R.id.speedMediumButton);
         speedHighButton = findViewById(R.id.speedHighButton);
-        autoModeButton = findViewById(R.id.autoModeButton);
+        toggleHumidifierButton = findViewById(R.id.toggleHumidifierButton);
         oscillationButton = findViewById(R.id.oscillationButton);
-        angleSlider = findViewById(R.id.angleSlider);
+        angleButton = findViewById(R.id.angleButton);
+        autoModeButton = findViewById(R.id.autoModeButton);
 
         connectWebSocket();
 
-        toggleFanButton.setOnClickListener(v -> {
-            fanOn = !fanOn;
-            toggleFanButton.setText(fanOn ? "Tắt quạt" : "Bật quạt");
-            if (ws != null && ws.isOpen()) {
-                String command = fanOn ? "speed:" + currentSpeed : "speed:0";
-                ws.sendText(command);
-                Log.d(TAG, "Gửi lệnh: " + command);
-                statusText.setText("Trạng thái quạt: " + (fanOn ? "Đang chạy (Tốc độ " + currentSpeed + ")" : "Tắt") + "\nNhiệt độ: --°C\nĐầu tạo ẩm: " + (humidifierOn ? "Bật" : "Tắt"));
-            } else {
-                Log.e(TAG, "WebSocket chưa kết nối");
-                statusText.setText("Lỗi: WebSocket chưa kết nối");
-            }
-        });
-
-        toggleHumidifierButton.setOnClickListener(v -> {
-            if (ws != null && ws.isOpen()) {
-                humidifierOn = !humidifierOn;
-                toggleHumidifierButton.setText(humidifierOn ? "Tắt đầu tạo ẩm" : "Bật đầu tạo ẩm");
-                ws.sendText(humidifierOn ? "humidifier:on" : "humidifier:off");
-                Log.d(TAG, "Gửi lệnh: " + (humidifierOn ? "humidifier:on" : "humidifier:off"));
-                statusText.setText("Trạng thái quạt: " + (fanOn ? "Đang chạy (Tốc độ " + currentSpeed + ")" : "Tắt") + "\nNhiệt độ: --°C\nĐầu tạo ẩm: " + (humidifierOn ? "Bật" : "Tắt"));
-            } else {
-                Log.e(TAG, "WebSocket chưa kết nối");
-                statusText.setText("Lỗi: WebSocket chưa kết nối");
+        speedOffButton.setOnClickListener(v -> {
+            if (!autoMode && ws != null && ws.isOpen()) {
+                currentSpeed = 0;
+                ws.sendText("speed:0");
+                Log.d(TAG, "Sent command: speed:0");
+                updateUI();
             }
         });
 
         speedLowButton.setOnClickListener(v -> {
             if (!autoMode && ws != null && ws.isOpen()) {
                 currentSpeed = 1;
-                fanOn = true;
-                toggleFanButton.setText("Tắt quạt");
                 ws.sendText("speed:1");
-                Log.d(TAG, "Gửi lệnh: speed:1");
-                statusText.setText("Trạng thái quạt: Đang chạy (Tốc độ 1)\nNhiệt độ: --°C\nĐầu tạo ẩm: " + (humidifierOn ? "Bật" : "Tắt"));
-            } else {
-                Log.e(TAG, autoMode ? "Không gửi speed:1 vì autoMode bật" : "WebSocket chưa kết nối");
+                Log.d(TAG, "Sent command: speed:1");
+                updateUI();
             }
         });
 
         speedMediumButton.setOnClickListener(v -> {
             if (!autoMode && ws != null && ws.isOpen()) {
                 currentSpeed = 2;
-                fanOn = true;
-                toggleFanButton.setText("Tắt quạt");
                 ws.sendText("speed:2");
-                Log.d(TAG, "Gửi lệnh: speed:2");
-                statusText.setText("Trạng thái quạt: Đang chạy (Tốc độ 2)\nNhiệt độ: --°C\nĐầu tạo ẩm: " + (humidifierOn ? "Bật" : "Tắt"));
-            } else {
-                Log.e(TAG, autoMode ? "Không gửi speed:2 vì autoMode bật" : "WebSocket chưa kết nối");
+                Log.d(TAG, "Sent command: speed:2");
+                updateUI();
             }
         });
 
         speedHighButton.setOnClickListener(v -> {
             if (!autoMode && ws != null && ws.isOpen()) {
                 currentSpeed = 3;
-                fanOn = true;
-                toggleFanButton.setText("Tắt quạt");
                 ws.sendText("speed:3");
-                Log.d(TAG, "Gửi lệnh: speed:3");
-                statusText.setText("Trạng thái quạt: Đang chạy (Tốc độ 3)\nNhiệt độ: --°C\nĐầu tạo ẩm: " + (humidifierOn ? "Bật" : "Tắt"));
-            } else {
-                Log.e(TAG, autoMode ? "Không gửi speed:3 vì autoMode bật" : "WebSocket chưa kết nối");
+                Log.d(TAG, "Sent command: speed:3");
+                updateUI();
             }
         });
 
-        autoModeButton.setOnClickListener(v -> {
-            if (ws != null && ws.isOpen()) {
-                autoMode = !autoMode;
-                autoModeButton.setText("Chế độ tự động: " + (autoMode ? "Bật" : "Tắt"));
-                ws.sendText(autoMode ? "auto:on" : "auto:off");
-                Log.d(TAG, "Gửi lệnh: " + (autoMode ? "auto:on" : "auto:off"));
-                speedLowButton.setEnabled(!autoMode);
-                speedMediumButton.setEnabled(!autoMode);
-                speedHighButton.setEnabled(!autoMode);
-                statusText.setText("Trạng thái quạt: " + (fanOn ? "Đang chạy (Tốc độ " + currentSpeed + ")" : "Tắt") + "\nNhiệt độ: --°C\nĐầu tạo ẩm: " + (humidifierOn ? "Bật" : "Tắt"));
-            } else {
-                Log.e(TAG, "WebSocket chưa kết nối");
+        toggleHumidifierButton.setOnClickListener(v -> {
+            if (!autoMode && ws != null && ws.isOpen()) {
+                humidifierOn = !humidifierOn;
+                toggleHumidifierButton.setText(humidifierOn ? "Tắt đầu phun sương" : "Bật đầu phun sương");
+                toggleHumidifierButton.setBackgroundTintList(ContextCompat.getColorStateList(
+                        this, humidifierOn ? R.color.green : R.color.primary_blue));
+                ws.sendText(humidifierOn ? "humidifier:on" : "humidifier:off");
+                Log.d(TAG, "Sent command: " + (humidifierOn ? "humidifier:on" : "humidifier:off"));
+                updateUI();
             }
         });
 
         oscillationButton.setOnClickListener(v -> {
             if (ws != null && ws.isOpen()) {
                 oscillation = !oscillation;
-                oscillationButton.setText("Xoay quạt: " + (oscillation ? "Bật" : "Tắt"));
+                oscillationButton.setText("Xoay: " + (oscillation ? "Bật" : "Tắt"));
+                oscillationButton.setBackgroundTintList(ContextCompat.getColorStateList(
+                        this, oscillation ? R.color.green : R.color.primary_blue));
                 ws.sendText(oscillation ? "oscillation:on" : "oscillation:off");
-                Log.d(TAG, "Gửi lệnh: " + (oscillation ? "oscillation:on" : "oscillation:off"));
-                statusText.setText("Trạng thái quạt: " + (fanOn ? "Đang chạy (Tốc độ " + currentSpeed + ")" : "Tắt") + "\nNhiệt độ: --°C\nĐầu tạo ẩm: " + (humidifierOn ? "Bật" : "Tắt"));
-            } else {
-                Log.e(TAG, "WebSocket chưa kết nối");
+                Log.d(TAG, "Sent command: " + (oscillation ? "oscillation:on" : "oscillation:off"));
+                updateUI();
             }
         });
 
-        angleSlider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser && ws != null && ws.isOpen()) {
-                    oscillationAngle = progress + 30;
-                    angleText.setText("Góc: " + oscillationAngle + "°");
-                    ws.sendText("angle:" + oscillationAngle);
-                    Log.d(TAG, "Gửi lệnh: angle:" + oscillationAngle);
-                }
+        angleButton.setOnClickListener(v -> {
+            if (!oscillation && ws != null && ws.isOpen()) {
+                currentAngleIndex = (currentAngleIndex + 1) % angles.length;
+                angleButton.setText("Hướng gió: " + angles[currentAngleIndex] + "°");
+                ws.sendText("angle:next");
+                Log.d(TAG, "Sent command: angle:next");
+                updateUI();
             }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {}
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {}
         });
+
+        autoModeButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, AutoModeActivity.class);
+            startActivity(intent);
+        });
+    }
+
+    private void updateUI() {
+        // Update fan status
+        fanStatusLabel.setText("Trạng thái quạt: " + (currentSpeed > 0 ? "Đang chạy (Tốc độ " + currentSpeed + ")" : "Tắt"));
+
+        // Update temperature and humidity from sensor
+        tempHumidityText.setText(String.format("Nhiệt độ: %.1f°C  |  Độ ẩm: %.1f%%",
+                currentTemp, currentHumidity));
+
+        // Update auto mode status with thresholds
+        autoModeStatusText.setText(String.format("Chế độ tự động: %s\nNgưỡng nhiệt độ: %.1f°C\nNgưỡng độ ẩm: %.1f%%",
+                autoMode ? "Bật" : "Tắt", tempThreshold, humidityThreshold));
+
+        // Update button states and colors
+        boolean enableManualControls = !autoMode;
+        speedOffButton.setEnabled(enableManualControls);
+        speedLowButton.setEnabled(enableManualControls);
+        speedMediumButton.setEnabled(enableManualControls);
+        speedHighButton.setEnabled(enableManualControls);
+        toggleHumidifierButton.setEnabled(enableManualControls);
+        oscillationButton.setEnabled(enableManualControls);
+        angleButton.setEnabled(enableManualControls && !oscillation);
+
+        // Set colors for enabled/disabled buttons
+        int disabledColor = R.color.gray;
+        int speedButtonColor = enableManualControls ? R.color.primary_blue : disabledColor;
+        int speedOffButtonColor = enableManualControls ? R.color.red : disabledColor;
+        speedOffButton.setBackgroundTintList(ContextCompat.getColorStateList(this, speedOffButtonColor));
+        speedLowButton.setBackgroundTintList(ContextCompat.getColorStateList(this, speedButtonColor));
+        speedMediumButton.setBackgroundTintList(ContextCompat.getColorStateList(this, speedButtonColor));
+        speedHighButton.setBackgroundTintList(ContextCompat.getColorStateList(this, speedButtonColor));
+        toggleHumidifierButton.setBackgroundTintList(ContextCompat.getColorStateList(
+                this, enableManualControls ? (humidifierOn ? R.color.green : R.color.primary_blue) : disabledColor));
+        oscillationButton.setBackgroundTintList(ContextCompat.getColorStateList(
+                this, enableManualControls ? (oscillation ? R.color.green : R.color.primary_blue) : disabledColor));
+        angleButton.setBackgroundTintList(ContextCompat.getColorStateList(
+                this, (enableManualControls && !oscillation) ? R.color.primary_blue : disabledColor));
     }
 
     private void connectWebSocket() {
@@ -170,54 +171,68 @@ public class MainActivity extends AppCompatActivity {
                 public void onTextMessage(WebSocket websocket, String message) {
                     runOnUiThread(() -> {
                         try {
-                            Log.d(TAG, "Nhận JSON: " + message);
+                            Log.d(TAG, "Received JSON: " + message);
                             JSONObject json = new JSONObject(message);
                             currentSpeed = json.getInt("speed");
                             autoMode = json.getBoolean("auto");
                             oscillation = json.getBoolean("oscillation");
-                            oscillationAngle = json.getInt("angle");
-                            float temp = (float) json.getDouble("temp");
+                            currentAngleIndex = java.util.Arrays.binarySearch(angles, json.getInt("angle"));
+                            currentTemp = (float) json.getDouble("temp");
+                            currentHumidity = (float) json.getDouble("humidity");
                             humidifierOn = json.getBoolean("humidifier");
+                            tempThreshold = (float) json.getDouble("temp_threshold");
+                            humidityThreshold = (float) json.getDouble("humidity_threshold");
 
-                            fanOn = currentSpeed > 0;
-                            toggleFanButton.setText(fanOn ? "Tắt quạt" : "Bật quạt");
-                            toggleHumidifierButton.setText(humidifierOn ? "Tắt đầu tạo ẩm" : "Bật đầu tạo ẩm");
-                            autoModeButton.setText("Chế độ tự động: " + (autoMode ? "Bật" : "Tắt"));
-                            oscillationButton.setText("Xoay quạt: " + (oscillation ? "Bật" : "Tắt"));
-                            angleSlider.setProgress(oscillationAngle - 30);
-                            angleText.setText("Góc: " + oscillationAngle + "°");
-                            statusText.setText("Trạng thái quạt: " + (fanOn ? "Đang chạy (Tốc độ " + currentSpeed + ")" : "Tắt") + "\nNhiệt độ: " + String.format("%.1f", temp) + "°C\nĐầu tạo ẩm: " + (humidifierOn ? "Bật" : "Tắt"));
-                            speedLowButton.setEnabled(!autoMode);
-                            speedMediumButton.setEnabled(!autoMode);
-                            speedHighButton.setEnabled(!autoMode);
+                            // Update UI elements
+                            oscillationButton.setText("Xoay: " + (oscillation ? "Bật" : "Tắt"));
+                            angleButton.setText("Hướng gió: " + angles[currentAngleIndex] + "°");
+                            toggleHumidifierButton.setText(humidifierOn ? "Tắt đầu phun sương" : "Bật đầu phun sương");
+                            updateUI();
                         } catch (Exception e) {
-                            Log.e(TAG, "Lỗi phân tích JSON: " + e.getMessage());
+                            Log.e(TAG, "JSON parsing error: " + e.getMessage());
                         }
                     });
                 }
 
                 @Override
                 public void onConnected(WebSocket websocket, java.util.Map<String, java.util.List<String>> headers) {
-                    Log.d(TAG, "WebSocket đã kết nối");
-                    runOnUiThread(() -> statusText.setText("Đã kết nối với ESP32\nNhiệt độ: --°C\nĐầu tạo ẩm: Tắt"));
+                    Log.d(TAG, "WebSocket connected");
+                    runOnUiThread(() -> {
+                        tempHumidityText.setText("Nhiệt độ: --°C  |  Độ ẩm: --%");
+                        fanStatusLabel.setText("Trạng thái quạt: Tắt");
+                        autoModeStatusText.setText("Chế độ tự động: Tắt\nNgưỡng nhiệt độ: 30.0°C\nNgưỡng độ ẩm: 60.0%");
+                        updateUI();
+                    });
                 }
 
                 @Override
                 public void onConnectError(WebSocket websocket, com.neovisionaries.ws.client.WebSocketException exception) {
-                    Log.e(TAG, "Lỗi kết nối WebSocket: " + exception.getMessage());
-                    runOnUiThread(() -> statusText.setText("Lỗi: Không kết nối được với ESP32"));
+                    Log.e(TAG, "WebSocket connection error: " + exception.getMessage());
+                    runOnUiThread(() -> {
+                        tempHumidityText.setText("Lỗi: Không kết nối được với ESP32");
+                        fanStatusLabel.setText("Trạng thái quạt: Tắt");
+                        updateUI();
+                    });
                 }
 
                 @Override
                 public void onDisconnected(WebSocket websocket, com.neovisionaries.ws.client.WebSocketFrame serverCloseFrame, com.neovisionaries.ws.client.WebSocketFrame clientCloseFrame, boolean closedByServer) {
-                    Log.d(TAG, "WebSocket đã ngắt kết nối");
-                    runOnUiThread(() -> statusText.setText("Lỗi: WebSocket đã ngắt kết nối"));
+                    Log.d(TAG, "WebSocket disconnected");
+                    runOnUiThread(() -> {
+                        tempHumidityText.setText("Lỗi: WebSocket đã ngắt kết nối");
+                        fanStatusLabel.setText("Trạng thái quạt: Tắt");
+                        updateUI();
+                    });
                 }
             });
             ws.connectAsynchronously();
         } catch (Exception e) {
-            Log.e(TAG, "Lỗi khởi tạo WebSocket: " + e.getMessage());
-            runOnUiThread(() -> statusText.setText("Lỗi: Không khởi tạo được WebSocket"));
+            Log.e(TAG, "WebSocket initialization error: " + e.getMessage());
+            runOnUiThread(() -> {
+                tempHumidityText.setText("Lỗi: Không khởi tạo được WebSocket");
+                fanStatusLabel.setText("Trạng thái quạt: Tắt");
+                updateUI();
+            });
         }
     }
 
@@ -226,7 +241,7 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         if (ws != null) {
             ws.disconnect();
-            Log.d(TAG, "WebSocket đã ngắt kết nối khi thoát");
+            Log.d(TAG, "WebSocket disconnected on destroy");
         }
     }
 }
