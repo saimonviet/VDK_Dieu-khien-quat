@@ -9,8 +9,8 @@ const char* password = "12345678";
 WebSocketsServer webSocket = WebSocketsServer(81);
 
 // Cấu hình chân UART2
-#define RXD2 19  // ESP32 nhận dữ liệu từ Arduino
-#define TXD2 18  // ESP32 gửi dữ liệu đến Arduino
+#define RXD2 19
+#define TXD2 18
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
   switch (type) {
